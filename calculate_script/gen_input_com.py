@@ -3,7 +3,7 @@ import numpy as np
 from glob import glob 
 import os
 
-def makegaussian_input(coord,symbol,dir0):
+def makegaussian_input(coord,symbol,q_net,dir0):
     fr = open(dir0+'single.gjf','w')
     fr.writelines('%chk=2.chk'+'\n')
     fr.writelines('%mem=4gb'+'\n')
@@ -12,7 +12,7 @@ def makegaussian_input(coord,symbol,dir0):
     fr.writelines('\n'); fr.writelines('oled'+'\n')
     fr.writelines('\n')
     # !!!! need to specify charge in the future
-    fr.writelines('0 1'+'\n')
+    fr.writelines('%s 1' %(str(int(q_net)))+'\n')
     for i in range(len(symbol)):
         fr.writelines('%s %.6f %.6f %.6f' %(str(symbol[i]),coord[i][0],coord[i][1],coord[i][2])+'\n')
     fr.writelines('\n')
@@ -21,10 +21,12 @@ def makegaussian_input(coord,symbol,dir0):
 
 def s0data(file_name):
     flag = 0; energy_t = []; coord_t = []; atomic_symbol = []
-    homo_t = []; lumo_t = []; lumo = None
+    homo_t = []; lumo_t = []; lumo = None; q_net = None
     with open(file_name) as fp:
         for line in fp:
-            if line.startswith(" Alpha  occ. eigenvalues --"):
+            if line.startswith(" Charge = "):
+                q_net = int(line.split()[2])
+            elif line.startswith(" Alpha  occ. eigenvalues --"):
                 homo = float(line.split()[-1])*27.211386
             elif line.startswith(" Alpha virt. eigenvalues --") and lumo == None and homo != None:
                 lumo = float(line.split()[4])*27.211386
@@ -57,18 +59,21 @@ def s0data(file_name):
     energy_t = energy_t[-1]; coord_t = coord_t[-1]
     data = {}
     data['homo_t'] = homo_t; data['lumo_t'] = lumo_t; data['energy_t'] = energy_t
-    data['coord_t'] = coord_t; data['atomic_symbol'] = atomic_symbol
+    data['coord_t'] = coord_t; data['atomic_symbol'] = atomic_symbol; data['q_net'] = q_net
     return data
 
-dir1 = glob('./*config*.log')
+#dir1 = glob('./*config*.log') + glob('./frag*.log')
+dir1 = glob('./*.log')
 dir0 = []
 for i in range(len(dir1)):
     if 'single' in dir1[i]:
         pass
     else:
-        dir0.append(dir1[i])
+        if 'raw' in dir1[i] or 'config' in dir1[i]: 
+            dir0.append(dir1[i])
+
 dir0 = dir0[0]
 s0data = s0data(dir0)
-coord = s0data['coord_t']; symbol = s0data['atomic_symbol']
+coord = s0data['coord_t']; symbol = s0data['atomic_symbol']; q_net = s0data['q_net']
 dir0 = os.path.basename(dir0).split('.')[0]
-makegaussian_input(coord,symbol,dir0)
+makegaussian_input(coord,symbol,q_net,dir0)
